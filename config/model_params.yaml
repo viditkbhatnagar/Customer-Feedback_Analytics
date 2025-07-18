@@ -1,0 +1,208 @@
+# Model Parameters Configuration
+# Fine-tuned hyperparameters for all models
+
+sentiment_models:
+  # Traditional ML Models
+  random_forest:
+    n_estimators: 200
+    max_depth: 50
+    min_samples_split: 5
+    min_samples_leaf: 2
+    max_features: 'sqrt'
+    bootstrap: true
+    random_state: 42
+    n_jobs: -1
+    class_weight: 'balanced'
+    
+  svm:
+    C: 1.0
+    kernel: 'rbf'
+    gamma: 'scale'
+    probability: true
+    random_state: 42
+    max_iter: 1000
+    class_weight: 'balanced'
+    
+  # Deep Learning Models
+  lstm:
+    architecture:
+      embedding_dim: 128
+      hidden_dim: 256
+      num_layers: 2
+      bidirectional: true
+      dropout: 0.3
+      attention: true
+    
+    training:
+      batch_size: 64
+      epochs: 15
+      learning_rate: 0.001
+      optimizer: 'adam'
+      early_stopping_patience: 3
+      gradient_clip_norm: 1.0
+      
+    preprocessing:
+      max_sequence_length: 256
+      vocab_size: 10000
+      
+  # Transformer Models  
+  transformer:
+    model_name: 'distilbert-base-uncased'
+    fine_tuning:
+      max_length: 256
+      batch_size: 16
+      learning_rate: 2e-5
+      epochs: 3
+      warmup_steps: 500
+      weight_decay: 0.01
+      gradient_accumulation_steps: 1
+    
+    advanced:
+      use_mixed_precision: false
+      gradient_checkpointing: false
+      freeze_embeddings: false
+
+# Topic Modeling Parameters
+topic_models:
+  lda:
+    n_components: 15
+    doc_topic_prior: null  # auto
+    topic_word_prior: null  # auto
+    learning_method: 'online'
+    learning_decay: 0.7
+    learning_offset: 50.0
+    max_iter: 20
+    batch_size: 128
+    evaluate_every: -1
+    total_samples: 1000000
+    perp_tol: 0.1
+    mean_change_tol: 0.001
+    max_doc_update_iter: 100
+    random_state: 42
+    
+  bertopic:
+    language: 'english'
+    top_n_words: 10
+    n_gram_range: [1, 3]
+    min_topic_size: 30
+    nr_topics: 'auto'
+    diversity: 0.3
+    calculate_probabilities: true
+    seed_topic_list: null
+    
+    umap_args:
+      n_neighbors: 15
+      n_components: 5
+      min_dist: 0.0
+      metric: 'cosine'
+      random_state: 42
+      
+    hdbscan_args:
+      min_cluster_size: 30
+      min_samples: 10
+      metric: 'euclidean'
+      cluster_selection_method: 'eom'
+      prediction_data: true
+
+# Feature Extraction Parameters
+feature_extraction:
+  tfidf:
+    max_features: 5000
+    ngram_range: [1, 3]
+    min_df: 5
+    max_df: 0.95
+    use_idf: true
+    smooth_idf: true
+    sublinear_tf: true
+    
+  word_embeddings:
+    model: 'glove'
+    dimension: 100
+    window_size: 5
+    min_count: 5
+    
+  text_features:
+    # Readability metrics
+    flesch_reading_ease: true
+    flesch_kincaid_grade: true
+    gunning_fog: true
+    
+    # Linguistic features
+    pos_tags: true
+    named_entities: true
+    dependency_features: true
+    
+    # Statistical features
+    char_count: true
+    word_count: true
+    sentence_count: true
+    avg_word_length: true
+    
+    # Sentiment lexicons
+    vader: true
+    textblob: true
+    afinn: true
+
+# Ensemble Configuration
+ensemble:
+  voting_method: 'soft'  # 'hard' or 'soft'
+  weights:
+    random_forest: 0.2
+    svm: 0.15
+    lstm: 0.25
+    transformer: 0.4
+  
+  confidence_threshold: 0.7
+  disagreement_threshold: 0.3
+
+# Evaluation Metrics
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - confusion_matrix
+    - classification_report
+    
+  cross_validation:
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+    
+  test_size: 0.2
+  validation_size: 0.1
+
+# Model Optimization
+optimization:
+  hyperparameter_tuning:
+    method: 'bayesian'  # 'grid', 'random', 'bayesian'
+    n_trials: 50
+    timeout: 3600  # seconds
+    
+  feature_selection:
+    method: 'mutual_info'  # 'chi2', 'mutual_info', 'rfe'
+    n_features: 1000
+    
+  model_compression:
+    quantization: true
+    pruning: false
+    distillation: false
+
+# Deployment Configuration
+deployment:
+  model_serving:
+    framework: 'fastapi'
+    batch_size: 32
+    max_queue_size: 1000
+    timeout: 30
+    
+  monitoring:
+    track_predictions: true
+    track_confidence: true
+    alert_threshold: 0.5
+    
+  versioning:
+    strategy: 'timestamp'  # 'timestamp' or 'semantic'
+    keep_n_versions: 5

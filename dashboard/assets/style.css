@@ -1,0 +1,310 @@
+/* Custom CSS for Customer Feedback Analytics Dashboard */
+
+/* Color Palette */
+:root {
+    --primary-color: #1f77b4;
+    --secondary-color: #2ca02c;
+    --accent-color: #ff7f0e;
+    --positive-color: #2ECC71;
+    --negative-color: #E74C3C;
+    --neutral-color: #95A5A6;
+    --background-light: #f0f2f6;
+    --background-dark: #262730;
+    --text-primary: #262730;
+    --text-secondary: #555555;
+    --border-color: #e0e0e0;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* Main Container Styling */
+.main {
+    padding: 1rem 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Header Styling */
+h1 {
+    color: var(--primary-color);
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    text-shadow: 2px 2px 4px var(--shadow);
+}
+
+h2 {
+    color: var(--secondary-color);
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--secondary-color);
+    padding-bottom: 0.5rem;
+}
+
+h3 {
+    color: var(--accent-color);
+    font-size: 1.3rem;
+    font-weight: 500;
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+}
+
+/* Metric Cards */
+.stMetric {
+    background: linear-gradient(135deg, #ffffff 0%, var(--background-light) 100%);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.stMetric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px var(--shadow);
+}
+
+[data-testid="metric-container"] {
+    background: linear-gradient(135deg, #ffffff 0%, var(--background-light) 100%);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px var(--shadow);
+    margin-bottom: 1rem;
+}
+
+[data-testid="metric-container"] > div {
+    text-align: center;
+}
+
+[data-testid="metric-container"] label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+[data-testid="metric-container"] [data-testid="metric-value"] {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Sidebar Styling */
+.sidebar .sidebar-content {
+    background-color: var(--background-light);
+    padding: 1rem;
+}
+
+.sidebar .sidebar-content h2 {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+/* Button Styling */
+.stButton > button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.stButton > button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow);
+}
+
+/* Tab Styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+    background-color: var(--background-light);
+    padding: 0.5rem;
+    border-radius: 10px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    padding: 0 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Alert and Warning Boxes */
+.stAlert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border-left: 4px solid;
+}
+
+.stAlert[data-baseweb="notification"] {
+    background-color: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+/* Expander Styling */
+.streamlit-expanderHeader {
+    background-color: var(--background-light);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.streamlit-expanderContent {
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    padding: 1rem;
+    background-color: white;
+}
+
+/* Select Box and Input Styling */
+.stSelectbox > div > div {
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.stTextInput > div > div > input {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+}
+
+/* DataFrame Styling */
+.dataframe {
+    border: none !important;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.dataframe thead tr th {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    font-weight: 600;
+    padding: 0.75rem !important;
+}
+
+.dataframe tbody tr:nth-child(even) {
+    background-color: var(--background-light);
+}
+
+.dataframe tbody tr:hover {
+    background-color: #e8f4f8;
+}
+
+/* Progress Bar */
+.stProgress > div > div > div {
+    background-color: var(--primary-color);
+}
+
+/* Plotly Charts Container */
+.js-plotly-plot {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px var(--shadow);
+    padding: 1rem;
+    background-color: white;
+    margin: 1rem 0;
+}
+
+/* Custom Classes for Sentiment */
+.sentiment-positive {
+    color: var(--positive-color);
+    font-weight: 600;
+}
+
+.sentiment-negative {
+    color: var(--negative-color);
+    font-weight: 600;
+}
+
+.sentiment-neutral {
+    color: var(--neutral-color);
+    font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main {
+        padding: 0.5rem 1rem;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    .stMetric {
+        padding: 1rem;
+    }
+}
+
+/* Animation Classes */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Loading Spinner Override */
+.stSpinner > div {
+    border-color: var(--primary-color) !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--background-light);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* Footer Styling */
+.footer {
+    text-align: center;
+    padding: 2rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 3rem;
+}

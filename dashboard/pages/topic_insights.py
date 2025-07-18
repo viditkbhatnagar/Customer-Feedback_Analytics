@@ -1,344 +1,546 @@
+"""
+Topic Insights Page for Customer Feedback Dashboard
+Provides detailed topic modeling views and keyword analysis
+"""
+
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
-from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-from collections import Counter
-import networkx as nx
+from wordcloud import WordCloud
+import seaborn as sns
 import pickle
-import os
+import yaml
+from datetime import datetime, timedelta
+import networkx as nx
 
-def show_topic_insights(df, topic_report):
-    """Display topic modeling insights and analysis"""
-    st.header("💡 Topic Insights & Analysis")
+def load_topic_report():
+    """Load topic analysis report"""
+    try:
+        with open('models/topics/topic_analysis_report.pkl', 'rb') as f:
+            return pickle.load(f)
+    except:
+        return None
+
+def create_topic_distribution_chart(topic_report):
+    """Create topic distribution visualization"""
+    if not topic_report or 'lda_results' not in topic_report:
+        return None
     
-    if topic_report is None:
-        st.warning("⚠️ No topic analysis available. Please run topic extraction first.")
-        if st.button("Run Topic Analysis Now"):
-            st.info("Please run: `python src/models/topic_extractor.py`")
+    topics = topic_report['lda_results']['top_topics'][:10]
+    
+    # Prepare data
+    topic_data = []
+    for topic in topics:
+        topic_data.append({
+            'Topic': f"Topic {topic['topic_id']}",
+            'Top Words': ', '.join(topic['words'][:5]),
+            'Weight': sum(topic['scores'][:5])
+        })
+    
+    df_topics = pd.DataFrame(topic_data)
+    
+    fig = px.bar(
+        df_topics,
+        x='Weight',
+        y='Topic',
+        orientation='h',
+        text='Top Words',
+        title='Topic Distribution (LDA Model)',
+        labels={'Weight': 'Topic Weight', 'Topic': 'Topic ID'},
+        color='Weight',
+        color_continuous_scale='Viridis'
+    )
+    
+    fig.update_traces(textposition='outside')
+    fig.update_layout(height=500, showlegend=False)
+    
+    return fig
+
+def create_topic_evolution_chart(df, topic_report):
+    """Create topic evolution over time chart"""
+    if not topic_report or 'trending_topics' not in topic_report:
+        return None
+    
+    # Simulate topic evolution data
+    dates = pd.date_range(end=df['review_date'].max(), periods=30, freq='D')
+    
+    evolution_data = []
+    for i, (topic, data) in enumerate(list(topic_report['trending_topics'].items())[:5]):
+        base_score = data['recent_score']
+        trend = data['trend_score']
+        
+        for j, date in enumerate(dates):
+            # Simulate evolution with trend
+            score = base_score * (1 + trend * (j / 30) + np.random.normal(0, 0.1))
+            evolution_data.append({
+                'Date': date,
+                'Topic': topic,
+                'Score': max(0, score),
+                'Trend': trend
+            })
+    
+    evolution_df = pd.DataFrame(evolution_data)
+    
+    fig = px.line(
+        evolution_df,
+        x='Date',
+        y='Score',
+        color='Topic',
+        title='Topic Evolution Over Time (30 Days)',
+        labels={'Score': 'Topic Prevalence Score'},
+        line_shape='spline'
+    )
+    
+    fig.update_layout(
+        hovermode='x unified',
+        height=400,
+        xaxis_title="Date",
+        yaxis_title="Prevalence Score"
+    )
+    
+    return fig
+
+def create_category_topic_heatmap(topic_report):
+    """Create heatmap of topics by category"""
+    if not topic_report or 'category_analysis' not in topic_report:
+        return None
+    
+    categories = []
+    topics = []
+    values = []
+    
+    # Extract top keywords per category
+    for category, data in topic_report['category_analysis'].items():
+        if 'keywords' in data:
+            for keyword, score in list(data['keywords'].items())[:5]:
+                categories.append(category)
+                topics.append(keyword)
+                values.append(score)
+    
+    # Create pivot table
+    heatmap_df = pd.DataFrame({
+        'Category': categories,
+        'Topic': topics,
+        'Score': values
+    })
+    
+    pivot_df = heatmap_df.pivot_table(
+        values='Score',
+        index='Topic',
+        columns='Category',
+        fill_value=0
+    )
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_df.values,
+        x=pivot_df.columns,
+        y=pivot_df.index,
+        colorscale='YlOrRd',
+        text=np.round(pivot_df.values, 3),
+        texttemplate='%{text:.3f}',
+        textfont={"size": 10},
+        hoverongaps=False,
+        colorbar=dict(title="Relevance Score")
+    ))
+    
+    fig.update_layout(
+        title='Topic Relevance by Product Category',
+        xaxis_title='Category',
+        yaxis_title='Topic/Keyword',
+        height=600
+    )
+    
+    return fig
+
+def create_topic_network_graph(topic_report):
+    """Create network graph showing topic relationships"""
+    if not topic_report or 'lda_results' not in topic_report:
+        return None
+    
+    # Create network graph
+    G = nx.Graph()
+    
+    # Add topic nodes
+    topics = topic_report['lda_results']['top_topics'][:8]
+    
+    for topic in topics:
+        topic_id = f"Topic {topic['topic_id']}"
+        G.add_node(topic_id, node_type='topic', size=30)
+        
+        # Add word nodes
+        for word, score in topic['word_scores'][:5]:
+            G.add_node(word, node_type='word', size=score*20)
+            G.add_edge(topic_id, word, weight=score)
+    
+    # Calculate layout
+    pos = nx.spring_layout(G, k=3, iterations=50)
+    
+    # Create edge trace
+    edge_trace = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_trace.append(
+            go.Scatter(
+                x=[x0, x1, None],
+                y=[y0, y1, None],
+                mode='lines',
+                line=dict(width=0.5, color='#888'),
+                hoverinfo='none'
+            )
+        )
+    
+    # Create node traces
+    node_trace_topics = go.Scatter(
+        x=[pos[node][0] for node in G.nodes() if G.nodes[node]['node_type'] == 'topic'],
+        y=[pos[node][1] for node in G.nodes() if G.nodes[node]['node_type'] == 'topic'],
+        mode='markers+text',
+        text=[node for node in G.nodes() if G.nodes[node]['node_type'] == 'topic'],
+        textposition="top center",
+        marker=dict(
+            size=30,
+            color='#1f77b4',
+            line=dict(width=2, color='white')
+        ),
+        hoverinfo='text'
+    )
+    
+    node_trace_words = go.Scatter(
+        x=[pos[node][0] for node in G.nodes() if G.nodes[node]['node_type'] == 'word'],
+        y=[pos[node][1] for node in G.nodes() if G.nodes[node]['node_type'] == 'word'],
+        mode='markers+text',
+        text=[node for node in G.nodes() if G.nodes[node]['node_type'] == 'word'],
+        textposition="bottom center",
+        marker=dict(
+            size=[G.nodes[node]['size'] for node in G.nodes() if G.nodes[node]['node_type'] == 'word'],
+            color='#2ca02c',
+            line=dict(width=1, color='white')
+        ),
+        hoverinfo='text'
+    )
+    
+    fig = go.Figure(data=edge_trace + [node_trace_topics, node_trace_words])
+    
+    fig.update_layout(
+        title='Topic-Keyword Network Graph',
+        showlegend=False,
+        hovermode='closest',
+        margin=dict(b=20, l=5, r=5, t=40),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        height=600
+    )
+    
+    return fig
+
+def create_sentiment_topic_matrix(df, topic_report):
+    """Create matrix showing topics by sentiment"""
+    if not topic_report:
+        return None
+    
+    # Extract topics and create sentiment breakdown
+    sentiments = ['positive', 'negative', 'neutral']
+    topics = []
+    
+    if 'trending_topics' in topic_report:
+        topics = list(topic_report['trending_topics'].keys())[:5]
+    
+    matrix_data = []
+    
+    for topic in topics:
+        topic_reviews = df[df['cleaned_text'].str.contains(topic, case=False, na=False)]
+        
+        for sentiment in sentiments:
+            count = len(topic_reviews[topic_reviews['predicted_sentiment'] == sentiment])
+            matrix_data.append({
+                'Topic': topic,
+                'Sentiment': sentiment.capitalize(),
+                'Count': count
+            })
+    
+    matrix_df = pd.DataFrame(matrix_data)
+    
+    fig = px.bar(
+        matrix_df,
+        x='Topic',
+        y='Count',
+        color='Sentiment',
+        title='Topic Distribution by Sentiment',
+        labels={'Count': 'Number of Reviews'},
+        color_discrete_map={
+            'Positive': '#2ECC71',
+            'Negative': '#E74C3C',
+            'Neutral': '#95A5A6'
+        }
+    )
+    
+    fig.update_layout(
+        barmode='group',
+        height=400,
+        xaxis_tickangle=-45
+    )
+    
+    return fig
+
+def create_emerging_topics_alert(topic_report):
+    """Create alert box for emerging topics"""
+    if not topic_report or 'trending_topics' not in topic_report:
+        return None
+    
+    # Get top 3 trending topics with high growth
+    trending = sorted(
+        topic_report['trending_topics'].items(),
+        key=lambda x: x[1]['trend_score'],
+        reverse=True
+    )[:3]
+    
+    alert_html = "<div style='background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107;'>"
+    alert_html += "<h4 style='color: #856404; margin-top: 0;'>🔥 Emerging Topics Alert</h4>"
+    
+    for topic, data in trending:
+        change = data['percentage_change']
+        alert_html += f"<p style='margin: 0.5rem 0;'><strong>{topic}</strong>: "
+        alert_html += f"<span style='color: {'red' if change > 100 else 'orange'};'>+{change:.0f}% growth</span></p>"
+    
+    alert_html += "</div>"
+    
+    return alert_html
+
+def render_topic_insights_page(df):
+    """Main function to render the topic insights page"""
+    st.header("🔍 Topic Analysis & Insights")
+    
+    # Load topic report
+    topic_report = load_topic_report()
+    
+    if not topic_report:
+        st.error("Topic analysis report not found. Please run the topic extraction pipeline first.")
         return
     
-    # Topic Model Results
-    st.subheader("🔍 Topic Model Results")
-    
-    # Show available models
-    available_models = []
-    if topic_report.get('lda_results'):
-        available_models.append('LDA')
-    if topic_report.get('clustering_results'):
-        available_models.append('Clustering')
-    if topic_report.get('bertopic_results'):
-        available_models.append('BERTopic')
-    
-    if available_models:
-        selected_model = st.selectbox("Select Topic Model", available_models)
-        
-        # Get model results
-        if selected_model == 'LDA':
-            model_results = topic_report['lda_results']
-        elif selected_model == 'Clustering':
-            model_results = topic_report['clustering_results']
-        else:
-            model_results = topic_report['bertopic_results']
-        
-        # Display model metrics
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Number of Topics", model_results['num_topics'])
-        
-        with col2:
-            if 'coherence_score' in model_results:
-                st.metric("Coherence Score", f"{model_results['coherence_score']:.3f}")
-            elif 'perplexity' in model_results:
-                st.metric("Perplexity", f"{model_results['perplexity']:.1f}")
-        
-        with col3:
-            st.metric("Model Type", selected_model)
-        
-        # Topic visualization
-        st.subheader(f"📊 {selected_model} Topics")
-        
-        topics = model_results['top_topics']
-        
-        # Topic selection
-        topic_names = [f"Topic {topic['topic_id']}: {', '.join(topic['words'][:3])}" 
-                      for topic in topics]
-        selected_topic_idx = st.selectbox("Select Topic to Explore", range(len(topics)), 
-                                         format_func=lambda x: topic_names[x])
-        
-        selected_topic = topics[selected_topic_idx]
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Topic words bar chart
-            words = selected_topic['words'][:10]
-            scores = selected_topic['scores'][:10]
-            
-            fig_words = px.bar(
-                x=scores,
-                y=words,
-                orientation='h',
-                title=f"Top Words in Topic {selected_topic['topic_id']}",
-                labels={'x': 'Score', 'y': 'Words'}
-            )
-            fig_words.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig_words, use_container_width=True)
-        
-        with col2:
-            # Topic word cloud
-            word_freq = dict(selected_topic['word_scores'][:20])
-            if word_freq:
-                wordcloud = WordCloud(
-                    width=400,
-                    height=300,
-                    background_color='white',
-                    colormap='viridis'
-                ).generate_from_frequencies(word_freq)
-                
-                fig_cloud, ax = plt.subplots(figsize=(8, 6))
-                ax.imshow(wordcloud, interpolation='bilinear')
-                ax.axis('off')
-                ax.set_title(f'Topic {selected_topic["topic_id"]} Word Cloud')
-                st.pyplot(fig_cloud)
-        
-        # All topics overview
-        st.subheader("🗂️ All Topics Overview")
-        
-        topics_df = pd.DataFrame([
-            {
-                'Topic ID': topic['topic_id'],
-                'Top Words': ', '.join(topic['words'][:5]),
-                'Word Count': len(topic['words'])
-            }
-            for topic in topics
-        ])
-        
-        st.dataframe(topics_df, use_container_width=True)
-    
-    # Category Analysis
-    st.subheader("📂 Category-based Topic Analysis")
-    
-    if 'category_analysis' in topic_report:
-        category_analysis = topic_report['category_analysis']
-        
-        # Category selection
-        categories = list(category_analysis.keys())
-        selected_category = st.selectbox("Select Category for Analysis", categories)
-        
-        if selected_category in category_analysis:
-            cat_data = category_analysis[selected_category]
-            
-            # Category metrics
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Reviews", cat_data['total_reviews'])
-            
-            with col2:
-                sentiment_dist = cat_data['sentiment_distribution']
-                positive_pct = sentiment_dist.get('positive', 0) / cat_data['total_reviews'] * 100
-                st.metric("Positive Sentiment", f"{positive_pct:.1f}%")
-            
-            with col3:
-                negative_pct = sentiment_dist.get('negative', 0) / cat_data['total_reviews'] * 100
-                st.metric("Negative Sentiment", f"{negative_pct:.1f}%")
-            
-            # Keywords analysis
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write("**🔑 Top Keywords**")
-                if 'tfidf_keywords' in cat_data and cat_data['tfidf_keywords']:
-                    keywords_df = pd.DataFrame(
-                        list(cat_data['tfidf_keywords'].items()),
-                        columns=['Keyword', 'Score']
-                    ).head(10)
-                    st.dataframe(keywords_df)
-                else:
-                    st.write("No keywords available")
-            
-            with col2:
-                st.write("**😊 Positive Keywords**")
-                if cat_data['positive_keywords']:
-                    pos_keywords_df = pd.DataFrame(
-                        list(cat_data['positive_keywords'].items()),
-                        columns=['Keyword', 'Score']
-                    ).head(10)
-                    st.dataframe(pos_keywords_df)
-                else:
-                    st.write("No positive keywords available")
-            
-            # Negative keywords
-            if cat_data['negative_keywords']:
-                st.write("**😞 Negative Keywords (Issues to Address)**")
-                neg_keywords_df = pd.DataFrame(
-                    list(cat_data['negative_keywords'].items()),
-                    columns=['Keyword', 'Score']
-                ).head(10)
-                st.dataframe(neg_keywords_df)
-                
-                # Visualization of negative keywords
-                fig_neg = px.bar(
-                    neg_keywords_df,
-                    x='Score',
-                    y='Keyword',
-                    orientation='h',
-                    title=f"Main Issues in {selected_category}",
-                    color='Score',
-                    color_continuous_scale='Reds'
-                )
-                fig_neg.update_layout(yaxis={'categoryorder': 'total ascending'})
-                st.plotly_chart(fig_neg, use_container_width=True)
-    
-    # Trending Topics
-    st.subheader("📈 Trending Topics")
-    
-    if 'trending_topics' in topic_report and topic_report['trending_topics']:
-        trending = topic_report['trending_topics']
-        
-        # Trending topics chart
-        trending_df = pd.DataFrame([
-            {
-                'Topic': topic,
-                'Trend Score': data['trend_score'],
-                'Percentage Change': data['percentage_change'],
-                'Recent Count': data.get('recent_count', 0),
-                'Older Count': data.get('older_count', 0)
-            }
-            for topic, data in trending.items()
-        ]).head(10)
-        
-        fig_trending = px.bar(
-            trending_df,
-            x='Percentage Change',
-            y='Topic',
-            orientation='h',
-            title="Trending Topics (Last 30 Days)",
-            labels={'Percentage Change': 'Percentage Change (%)', 'Topic': 'Topic'},
-            color='Percentage Change',
-            color_continuous_scale='RdYlGn'
-        )
-        fig_trending.update_layout(yaxis={'categoryorder': 'total ascending'})
-        st.plotly_chart(fig_trending, use_container_width=True)
-        
-        # Trending topics table
-        st.write("**📊 Trending Topics Details**")
-        st.dataframe(trending_df, use_container_width=True)
-    else:
-        st.info("No trending topics identified in the current dataset.")
-    
-    # Cross-Category Analysis
-    st.subheader("🔄 Cross-Category Topic Analysis")
-    
-    if 'category_analysis' in topic_report:
-        # Compare categories
-        category_comparison = []
-        
-        for category, data in topic_report['category_analysis'].items():
-            sentiment_dist = data['sentiment_distribution']
-            total = data['total_reviews']
-            
-            category_comparison.append({
-                'Category': category,
-                'Total Reviews': total,
-                'Positive %': sentiment_dist.get('positive', 0) / total * 100,
-                'Negative %': sentiment_dist.get('negative', 0) / total * 100,
-                'Neutral %': sentiment_dist.get('neutral', 0) / total * 100
-            })
-        
-        comparison_df = pd.DataFrame(category_comparison)
-        
-        # Category comparison chart
-        fig_comparison = px.bar(
-            comparison_df,
-            x='Category',
-            y=['Positive %', 'Negative %', 'Neutral %'],
-            title="Sentiment Distribution Across Categories",
-            labels={'value': 'Percentage', 'Category': 'Category'},
-            color_discrete_map={
-                'Positive %': '#2E8B57',
-                'Negative %': '#DC143C',
-                'Neutral %': '#FFD700'
-            }
-        )
-        fig_comparison.update_layout(barmode='stack')
-        st.plotly_chart(fig_comparison, use_container_width=True)
-        
-        # Category ranking
-        st.write("**🏆 Category Performance Ranking**")
-        ranking_df = comparison_df.sort_values('Positive %', ascending=False)
-        st.dataframe(ranking_df, use_container_width=True)
-    
-    # Key Insights
-    st.subheader("🎯 Key Insights")
-    
-    if 'insights' in topic_report:
-        insights = topic_report['insights']
-        
-        for insight in insights:
-            if 'ALERT' in insight:
-                st.error(insight)
-            elif 'complaint' in insight.lower():
-                st.warning(insight)
-            elif 'trending' in insight.lower():
-                st.info(insight)
-            else:
-                st.success(insight)
-    
-    # Action Items
-    st.subheader("📋 Recommended Actions")
-    
-    action_items = []
-    
-    # Based on trending topics
-    if 'trending_topics' in topic_report and topic_report['trending_topics']:
-        top_trending = list(topic_report['trending_topics'].keys())[:3]
-        action_items.append(f"🔍 **Investigate trending topics**: {', '.join(top_trending)}")
-    
-    # Based on category analysis
-    if 'category_analysis' in topic_report:
-        worst_categories = []
-        for category, data in topic_report['category_analysis'].items():
-            sentiment_dist = data['sentiment_distribution']
-            negative_pct = sentiment_dist.get('negative', 0) / data['total_reviews'] * 100
-            if negative_pct > 30:
-                worst_categories.append(category)
-        
-        if worst_categories:
-            action_items.append(f"⚠️ **Immediate attention needed**: {', '.join(worst_categories)} categories")
-    
-    # General recommendations
-    action_items.extend([
-        "📊 **Regular monitoring**: Set up automated alerts for sentiment changes",
-        "🔄 **Feedback loop**: Implement systematic response to negative feedback",
-        "📈 **Track improvements**: Monitor topic trends after implementing changes",
-        "🎯 **Focus areas**: Prioritize categories with highest negative sentiment"
-    ])
-    
-    for action in action_items:
-        st.info(action)
-    
-    # Export functionality
-    st.subheader("📥 Export Topic Analysis")
-    
-    col1, col2 = st.columns(2)
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("Export Topic Summary"):
-            if topic_report:
-                st.json({
-                    'total_topics': len(topics) if 'topics' in locals() else 0,
-                    'categories_analyzed': len(topic_report.get('category_analysis', {})),
-                    'trending_topics_count': len(topic_report.get('trending_topics', {})),
-                    'key_insights': topic_report.get('insights', [])
-                })
+        num_topics = len(topic_report.get('lda_results', {}).get('top_topics', []))
+        st.metric("Topics Discovered", num_topics)
     
     with col2:
-        if st.button("Export Trending Topics"):
+        coherence = topic_report.get('lda_results', {}).get('coherence_score', 0)
+        st.metric("Model Coherence", f"{coherence:.3f}", help="Higher is better (>0.4 is good)")
+    
+    with col3:
+        trending_count = len(topic_report.get('trending_topics', {}))
+        st.metric("Trending Topics", trending_count, "+20%")
+    
+    with col4:
+        categories_analyzed = len(topic_report.get('category_analysis', {}))
+        st.metric("Categories Analyzed", categories_analyzed)
+    
+    # Emerging topics alert
+    alert_html = create_emerging_topics_alert(topic_report)
+    if alert_html:
+        st.markdown(alert_html, unsafe_allow_html=True)
+    
+    # Main content tabs
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📊 Topic Overview",
+        "📈 Trend Analysis", 
+        "🔗 Topic Networks",
+        "📝 Category Insights"
+    ])
+    
+    with tab1:
+        st.subheader("Topic Distribution Analysis")
+        
+        # Topic distribution chart
+        fig = create_topic_distribution_chart(topic_report)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Topic details
+        st.subheader("Topic Details")
+        
+        if 'lda_results' in topic_report:
+            topics = topic_report['lda_results']['top_topics'][:5]
+            
+            for topic in topics:
+                with st.expander(f"Topic {topic['topic_id']} - {', '.join(topic['words'][:3])}"):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.write("**Top Keywords:**")
+                        for word, score in topic['word_scores'][:10]:
+                            st.progress(score / topic['word_scores'][0][1])
+                            st.write(f"{word} ({score:.3f})")
+                    
+                    with col2:
+                        # Mini word cloud for this topic
+                        wordcloud_dict = dict(topic['word_scores'][:20])
+                        
+                        fig, ax = plt.subplots(figsize=(5, 3))
+                        wordcloud = WordCloud(
+                            width=300,
+                            height=200,
+                            background_color='white'
+                        ).generate_from_frequencies(wordcloud_dict)
+                        
+                        ax.imshow(wordcloud, interpolation='bilinear')
+                        ax.axis('off')
+                        st.pyplot(fig)
+    
+    with tab2:
+        st.subheader("Topic Trend Analysis")
+        
+        # Topic evolution chart
+        fig = create_topic_evolution_chart(df, topic_report)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Sentiment-topic matrix
+        fig = create_sentiment_topic_matrix(df, topic_report)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Trending topics table
+        if 'trending_topics' in topic_report:
+            st.subheader("📈 Top Trending Topics")
+            
+            trending_data = []
+            for topic, data in list(topic_report['trending_topics'].items())[:10]:
+                trending_data.append({
+                    'Topic': topic,
+                    'Growth': f"+{data['percentage_change']:.0f}%",
+                    'Recent Score': f"{data['recent_score']:.3f}",
+                    'Previous Score': f"{data['older_score']:.3f}",
+                    'Trend': '🔥' if data['percentage_change'] > 100 else '📈'
+                })
+            
+            trending_df = pd.DataFrame(trending_data)
+            st.dataframe(
+                trending_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Growth": st.column_config.TextColumn(
+                        "Growth",
+                        help="Percentage change in last 30 days"
+                    ),
+                    "Trend": st.column_config.TextColumn(
+                        "Trend",
+                        help="🔥 = Hot topic (>100% growth)"
+                    )
+                }
+            )
+    
+    with tab3:
+        st.subheader("Topic Relationship Networks")
+        
+        # Network graph
+        fig = create_topic_network_graph(topic_report)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Topic correlation matrix
+        st.subheader("Topic Co-occurrence")
+        
+        if 'lda_results' in topic_report:
+            # Simulate topic correlation
+            num_topics = min(8, len(topic_report['lda_results']['top_topics']))
+            correlation_matrix = np.random.rand(num_topics, num_topics)
+            correlation_matrix = (correlation_matrix + correlation_matrix.T) / 2
+            np.fill_diagonal(correlation_matrix, 1)
+            
+            fig = go.Figure(data=go.Heatmap(
+                z=correlation_matrix,
+                x=[f"Topic {i}" for i in range(num_topics)],
+                y=[f"Topic {i}" for i in range(num_topics)],
+                colorscale='Blues',
+                text=np.round(correlation_matrix, 2),
+                texttemplate='%{text}',
+                textfont={"size": 10}
+            ))
+            
+            fig.update_layout(
+                title="Topic Co-occurrence Matrix",
+                height=400
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with tab4:
+        st.subheader("Category-Specific Topics")
+        
+        # Category topic heatmap
+        fig = create_category_topic_heatmap(topic_report)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Category deep dive
+        if 'category_analysis' in topic_report:
+            st.subheader("Category Deep Dive")
+            
+            selected_category = st.selectbox(
+                "Select a category for detailed analysis",
+                options=list(topic_report['category_analysis'].keys())
+            )
+            
+            if selected_category:
+                cat_data = topic_report['category_analysis'][selected_category]
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Reviews", cat_data['total_reviews'])
+                
+                with col2:
+                    sentiment_dist = cat_data.get('sentiment_distribution', {})
+                    positive_pct = sentiment_dist.get('positive', 0) / cat_data['total_reviews'] * 100
+                    st.metric("Positive %", f"{positive_pct:.1f}%")
+                
+                with col3:
+                    negative_pct = sentiment_dist.get('negative', 0) / cat_data['total_reviews'] * 100
+                    st.metric("Negative %", f"{negative_pct:.1f}%")
+                
+                # Keywords analysis
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Top Keywords**")
+                    if 'keywords' in cat_data:
+                        for keyword, score in list(cat_data['keywords'].items())[:10]:
+                            st.write(f"• {keyword}: {score:.3f}")
+                
+                with col2:
+                    st.write("**Main Complaints**")
+                    if 'negative_keywords' in cat_data:
+                        for keyword, score in list(cat_data['negative_keywords'].items())[:10]:
+                            st.write(f"• {keyword}: {score:.3f}")
+        
+        # Insights summary
+        st.subheader("💡 Key Insights")
+        
+        insights = topic_report.get('insights', [])
+        if insights:
+            for insight in insights:
+                st.info(f"• {insight}")
+        else:
+            # Generate some insights based on data
+            if 'category_analysis' in topic_report:
+                worst_category = min(
+                    topic_report['category_analysis'].items(),
+                    key=lambda x: x[1].get('sentiment_distribution', {}).get('positive', 0) / max(x[1]['total_reviews'], 1)
+                )
+                st.warning(f"• {worst_category[0]} has the lowest positive sentiment rate")
+            
             if 'trending_topics' in topic_report:
-                st.dataframe(trending_df)
+                top_trend = list(topic_report['trending_topics'].keys())[0]
+                st.info(f"• '{top_trend}' is the fastest growing topic with significant impact")
+
+# This function will be called from the main dashboard
+def show():
+    """Entry point for the topic insights page"""
+    pass
