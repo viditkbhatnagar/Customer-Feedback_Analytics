@@ -1,0 +1,129 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Pytest cache
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# VS Code
+.vscode/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Data outputs
+*.csv
+*.tsv
+*.json
+*.pkl
+*.h5
+*.db
+*.sqlite
+*.model
+*.bin
+
+# Model outputs
+models/
+checkpoints/
+logs/
+*.log
+
+# Data folders (but keep a placeholder)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/external/*
+!data/external/.gitkeep
+
+# Reports and generated files
+reports/*.pdf
+reports/*.md
+reports/*.html
+reports/*.pptx
+
+# Notebooks output
+notebooks/*.nbconvert.ipynb
+
+# System/OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# Editor swap/backup files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Ignore Streamlit cache
+.streamlit/
+
+# Ignore visualization outputs
+visualizations/

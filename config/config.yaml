@@ -42,7 +42,7 @@ models:
   sentiment:
     # Traditional ML
     tfidf:
-      max_features: 5000
+      max_features: 10000
       ngram_range: [1, 3]
       min_df: 5
       max_df: 0.95
@@ -68,7 +68,7 @@ models:
   topic_modeling:
     num_topics: 10
     min_topic_size: 50
-    n_gram_range: [1, 3]
+    n_gram_range: [1, 2]
     diversity: 0.3
     
 # Analysis Configuration
