@@ -1,0 +1,65 @@
+# Core Data Processing
+pandas>=1.5.0
+numpy>=1.23.0
+scipy>=1.9.0
+
+# NLP Libraries
+nltk>=3.8
+spacy>=3.4.0
+textblob>=0.17.1
+wordcloud>=1.9.0
+scikit-learn>=1.1.0
+
+# Deep Learning
+torch>=2.0.0
+transformers>=4.25.0
+tensorflow>=2.10.0
+
+# Topic Modeling
+gensim>=4.2.0
+bertopic>=0.12.0
+umap-learn>=0.5.3
+hdbscan>=0.8.29
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+plotly>=5.10.0
+streamlit>=1.20.0
+streamlit-aggrid>=0.3.3
+
+# Web Framework
+dash>=2.7.0
+flask>=2.2.0
+
+# Database
+sqlalchemy>=1.4.0
+pymongo>=4.3.0
+
+# Utilities
+pyyaml>=6.0
+python-dotenv>=0.21.0
+tqdm>=4.64.0
+colorlog>=6.7.0
+pytest>=7.2.0
+black>=22.10.0
+flake8>=5.0.0
+
+# Additional Analytics
+statsmodels>=0.13.0
+pmdarima>=2.0.0
+textstat>=0.7.3
+
+# API and Production
+fastapi>=0.88.0
+uvicorn>=0.20.0
+pydantic>=1.10.0
+redis>=4.4.0
+
+# Model Deployment
+mlflow>=2.0.0
+dvc>=2.34.0
+
+# Monitoring
+prometheus-client>=0.15.0
+grafana-api>=1.0.3
