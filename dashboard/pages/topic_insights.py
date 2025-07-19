@@ -310,6 +310,9 @@ def create_emerging_topics_alert(topic_report):
     
     return alert_html
 
+# ADD THIS TO THE END OF YOUR EXISTING dashboard/pages/topic_insights.py FILE
+# Replace the existing render_topic_insights_page function with this:
+
 def render_topic_insights_page(df):
     """Main function to render the topic insights page"""
     st.header("🔍 Topic Analysis & Insights")
@@ -540,6 +543,7 @@ def render_topic_insights_page(df):
                 top_trend = list(topic_report['trending_topics'].keys())[0]
                 st.info(f"• '{top_trend}' is the fastest growing topic with significant impact")
 
+                
 # This function will be called from the main dashboard
 def show():
     """Entry point for the topic insights page"""

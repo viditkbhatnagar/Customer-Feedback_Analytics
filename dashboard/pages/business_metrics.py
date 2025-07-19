@@ -13,6 +13,10 @@ import yaml
 from datetime import datetime, timedelta
 import json
 import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 def load_config():
     """Load configuration"""
@@ -395,9 +399,21 @@ def create_kpi_scorecard(df, financial_metrics):
     
     return kpis
 
+
+# ADD THIS TO THE END OF YOUR EXISTING dashboard/pages/business_metrics.py FILE
+# Replace the existing render_business_metrics_page function with this:
+
 def render_business_metrics_page(df):
     """Main function to render the business metrics page"""
     st.header("💼 Business Metrics & ROI Analysis")
+    
+    # Load topic report if available
+    try:
+        import pickle
+        with open("models/topics/topic_analysis_report.pkl", 'rb') as f:
+            topic_report = pickle.load(f)
+    except:
+        topic_report = {}
     
     # Calculate metrics
     financial_metrics = calculate_financial_metrics(df)

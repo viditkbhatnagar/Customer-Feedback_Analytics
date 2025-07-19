@@ -1,5 +1,5 @@
 """
-Customer Feedback Analytics Dashboard
+Customer Feedback Analytics Dashboard v
 Main Streamlit application for interactive analysis and visualization
 """
 
@@ -15,9 +15,15 @@ from wordcloud import WordCloud
 import yaml
 import pickle
 import os
+import sys
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
+
+# Add pages directory to Python path
+pages_path = os.path.join(os.path.dirname(__file__), 'pages')
+if pages_path not in sys.path:
+    sys.path.insert(0, pages_path)
 
 # Page configuration
 st.set_page_config(
@@ -216,46 +222,6 @@ def create_wordcloud(text_series, title="Word Cloud"):
     
     return fig
 
-def display_topic_analysis(topic_report, selected_category=None):
-    """Display topic analysis results"""
-    st.header("🔍 Topic Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Top Topics (LDA Model)")
-        if 'lda_results' in topic_report and topic_report['lda_results']:
-            for topic in topic_report['lda_results']['top_topics'][:5]:
-                words = ', '.join(topic['words'][:5])
-                st.write(f"**Topic {topic['topic_id']}:** {words}")
-                
-            st.metric(
-                "Model Coherence Score",
-                f"{topic_report['lda_results']['coherence_score']:.3f}",
-                help="Higher coherence indicates better topic quality"
-            )
-    
-    with col2:
-        st.subheader("Trending Topics (Last 30 Days)")
-        if topic_report['trending_topics']:
-            trending_df = pd.DataFrame([
-                {'Topic': topic, 'Change': data['percentage_change']}
-                for topic, data in list(topic_report['trending_topics'].items())[:10]
-            ])
-            
-            fig = px.bar(
-                trending_df,
-                x='Change',
-                y='Topic',
-                orientation='h',
-                title="Top Trending Topics",
-                labels={'Change': 'Percentage Change (%)'},
-                color='Change',
-                color_continuous_scale='RdYlGn'
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-
 def display_insights(df, topic_report):
     """Display key business insights"""
     st.header("💡 Key Insights & Recommendations")
@@ -333,285 +299,288 @@ def main():
     
     if df is None:
         st.error("Unable to load data. Please ensure all data files are generated.")
+        st.info("Run: python run_pipeline.py")
         return
     
-    # Sidebar filters
-    st.sidebar.header("Filters")
-    
-    # Date range filter
-    date_range = st.sidebar.date_input(
-        "Select Date Range",
-        value=(df['review_date'].min(), df['review_date'].max()),
-        min_value=df['review_date'].min(),
-        max_value=df['review_date'].max()
-    )
-    
-    # Category filter
-    categories = st.sidebar.multiselect(
-        "Select Categories",
-        options=df['category'].unique(),
-        default=df['category'].unique()
-    )
-    
-    # Sentiment filter
-    sentiments = st.sidebar.multiselect(
-        "Select Sentiments",
-        options=df['predicted_sentiment'].unique(),
-        default=df['predicted_sentiment'].unique()
-    )
-    
-    # Confidence threshold
-    confidence_threshold = st.sidebar.slider(
-        "Minimum Confidence Score",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.5,
-        step=0.05
-    )
-    
-    # Apply filters
-    filtered_df = df[
-        (df['review_date'].dt.date >= date_range[0]) &
-        (df['review_date'].dt.date <= date_range[1]) &
-        (df['category'].isin(categories)) &
-        (df['predicted_sentiment'].isin(sentiments)) &
-        (df['confidence_score'] >= confidence_threshold)
+    # Sidebar navigation - MAIN NAVIGATION
+    st.sidebar.title("🧭 Navigation")
+    page_options = [
+        "📊 Overview",
+        "💼 Business Metrics", 
+        "🎭 Sentiment Analysis",
+        "🔍 Topic Insights"
     ]
     
-    # Display metrics
-    st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
+    selected_page = st.sidebar.selectbox("Select Page", page_options)
     
-    with col1:
-        st.metric("Total Reviews", f"{len(filtered_df):,}")
-    with col2:
-        st.metric("Avg Rating", f"{filtered_df['rating'].mean():.2f}")
-    with col3:
-        st.metric("Categories", len(filtered_df['category'].unique()))
-    with col4:
-        verified_pct = filtered_df['verified_purchase'].mean() * 100
-        st.metric("Verified Purchases", f"{verified_pct:.1f}%")
-    
-    # Main content tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 Sentiment Analysis",
-        "🔍 Topic Insights",
-        "📈 Trends & Patterns",
-        "🔎 Review Explorer",
-        "💡 Recommendations"
-    ])
-    
-    with tab1:
-        st.header("Sentiment Analysis Overview")
+    # Sidebar filters (only for Overview page)
+    if selected_page == "📊 Overview":
+        st.sidebar.header("Filters")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            fig = create_sentiment_distribution_chart(filtered_df)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            fig = create_rating_sentiment_comparison(filtered_df)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Sentiment by category heatmap
-        st.subheader("Sentiment Analysis by Category")
-        fig = create_category_sentiment_heatmap(filtered_df)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Word clouds by sentiment
-        st.subheader("Word Clouds by Sentiment")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            positive_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'positive']['cleaned_text']
-            if len(positive_reviews) > 0:
-                fig = create_wordcloud(positive_reviews, "Positive Reviews")
-                if fig:
-                    st.pyplot(fig)
-        
-        with col2:
-            negative_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'negative']['cleaned_text']
-            if len(negative_reviews) > 0:
-                fig = create_wordcloud(negative_reviews, "Negative Reviews")
-                if fig:
-                    st.pyplot(fig)
-        
-        with col3:
-            neutral_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'neutral']['cleaned_text']
-            if len(neutral_reviews) > 0:
-                fig = create_wordcloud(neutral_reviews, "Neutral Reviews")
-                if fig:
-                    st.pyplot(fig)
-    
-    with tab2:
-        display_topic_analysis(topic_report)
-        
-        # Category-specific insights
-        st.subheader("Category-Specific Keywords")
-        selected_category = st.selectbox(
-            "Select a category for detailed analysis",
-            options=list(topic_report['category_analysis'].keys())
+        # Date range filter
+        date_range = st.sidebar.date_input(
+            "Select Date Range",
+            value=(df['review_date'].min(), df['review_date'].max()),
+            min_value=df['review_date'].min(),
+            max_value=df['review_date'].max()
         )
         
-        if selected_category in topic_report['category_analysis']:
-            cat_data = topic_report['category_analysis'][selected_category]
+        # Category filter
+        categories = st.sidebar.multiselect(
+            "Select Categories",
+            options=df['category'].unique(),
+            default=df['category'].unique()
+        )
+        
+        # Sentiment filter
+        sentiments = st.sidebar.multiselect(
+            "Select Sentiments",
+            options=df['predicted_sentiment'].unique(),
+            default=df['predicted_sentiment'].unique()
+        )
+        
+        # Confidence threshold
+        confidence_threshold = st.sidebar.slider(
+            "Minimum Confidence Score",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.05
+        )
+        
+        # Apply filters
+        filtered_df = df[
+            (df['review_date'].dt.date >= date_range[0]) &
+            (df['review_date'].dt.date <= date_range[1]) &
+            (df['category'].isin(categories)) &
+            (df['predicted_sentiment'].isin(sentiments)) &
+            (df['confidence_score'] >= confidence_threshold)
+        ]
+    else:
+        filtered_df = df
+    
+    # PAGE ROUTING - Call appropriate page functions
+    if selected_page == "📊 Overview":
+        # Display overview metrics
+        st.markdown("---")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Reviews", f"{len(filtered_df):,}")
+        with col2:
+            st.metric("Avg Rating", f"{filtered_df['rating'].mean():.2f}")
+        with col3:
+            st.metric("Categories", len(filtered_df['category'].unique()))
+        with col4:
+            verified_pct = filtered_df['verified_purchase'].mean() * 100
+            st.metric("Verified Purchases", f"{verified_pct:.1f}%")
+        
+        # Main content tabs for overview
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📊 Sentiment Analysis",
+            "🔍 Topic Insights",
+            "📈 Trends & Patterns",
+            "🔎 Review Explorer",
+            "💡 Recommendations"
+        ])
+        
+        with tab1:
+            st.header("Sentiment Analysis Overview")
             
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write("**Top Keywords:**")
-                for keyword, score in list(cat_data['keywords'].items())[:10]:
-                    st.write(f"• {keyword}: {score:.3f}")
+                fig = create_sentiment_distribution_chart(filtered_df)
+                st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                if cat_data['negative_keywords']:
-                    st.write("**Common Complaints:**")
-                    for keyword, score in list(cat_data['negative_keywords'].items())[:10]:
-                        st.write(f"• {keyword}: {score:.3f}")
-    
-    with tab3:
-        st.header("Trends & Patterns Analysis")
-        
-        # Sentiment timeline
-        fig = create_sentiment_timeline(filtered_df)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Reviews volume over time
-        daily_reviews = filtered_df.groupby(filtered_df['review_date'].dt.date).size().reset_index(name='count')
-        
-        fig = px.line(
-            daily_reviews,
-            x='review_date',
-            y='count',
-            title="Daily Review Volume",
-            labels={'review_date': 'Date', 'count': 'Number of Reviews'}
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=daily_reviews['review_date'],
-                y=daily_reviews['count'].rolling(7).mean(),
-                mode='lines',
-                name='7-day Moving Average',
-                line=dict(color='red', width=2)
-            )
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Hour and day patterns
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            hourly_dist = filtered_df.groupby('review_hour').size().reset_index(name='count')
-            fig = px.bar(
-                hourly_dist,
-                x='review_hour',
-                y='count',
-                title="Reviews by Hour of Day",
-                labels={'review_hour': 'Hour', 'count': 'Number of Reviews'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-            daily_dist = filtered_df.groupby('review_dayofweek').size().reset_index(name='count')
-            daily_dist['day_name'] = daily_dist['review_dayofweek'].map(lambda x: day_names[x])
+                fig = create_rating_sentiment_comparison(filtered_df)
+                st.plotly_chart(fig, use_container_width=True)
             
-            fig = px.bar(
-                daily_dist,
-                x='day_name',
-                y='count',
-                title="Reviews by Day of Week",
-                labels={'day_name': 'Day', 'count': 'Number of Reviews'}
-            )
+            # Sentiment by category heatmap
+            st.subheader("Sentiment Analysis by Category")
+            fig = create_category_sentiment_heatmap(filtered_df)
             st.plotly_chart(fig, use_container_width=True)
-    
-    with tab4:
-        st.header("Review Explorer")
+            
+            # Word clouds by sentiment
+            st.subheader("Word Clouds by Sentiment")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                positive_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'positive']['cleaned_text']
+                if len(positive_reviews) > 0:
+                    fig = create_wordcloud(positive_reviews, "Positive Reviews")
+                    if fig:
+                        st.pyplot(fig)
+            
+            with col2:
+                negative_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'negative']['cleaned_text']
+                if len(negative_reviews) > 0:
+                    fig = create_wordcloud(negative_reviews, "Negative Reviews")
+                    if fig:
+                        st.pyplot(fig)
+            
+            with col3:
+                neutral_reviews = filtered_df[filtered_df['predicted_sentiment'] == 'neutral']['cleaned_text']
+                if len(neutral_reviews) > 0:
+                    fig = create_wordcloud(neutral_reviews, "Neutral Reviews")
+                    if fig:
+                        st.pyplot(fig)
         
-        # Search functionality
-        search_term = st.text_input("Search reviews", placeholder="Enter keywords to search...")
-        
-        # Advanced filters
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            sort_by = st.selectbox(
-                "Sort by",
-                options=['review_date', 'rating', 'confidence_score', 'helpful_count'],
-                index=0
-            )
-        
-        with col2:
-            sort_order = st.radio("Order", ["Descending", "Ascending"])
-        
-        with col3:
-            num_reviews = st.number_input("Number of reviews to display", min_value=5, max_value=100, value=20)
-        
-        # Filter reviews
-        display_df = filtered_df.copy()
-        
-        if search_term:
-            display_df = display_df[
-                display_df['review_text'].str.contains(search_term, case=False, na=False) |
-                display_df['cleaned_text'].str.contains(search_term, case=False, na=False)
-            ]
-        
-        # Sort
-        display_df = display_df.sort_values(
-            by=sort_by,
-            ascending=(sort_order == "Ascending")
-        ).head(num_reviews)
-        
-        # Display reviews
-        for idx, row in display_df.iterrows():
-            with st.expander(
-                f"{'⭐' * int(row['rating'])} | {row['product_name']} | "
-                f"{row['predicted_sentiment'].upper()} ({row['confidence_score']:.0%} confidence)"
-            ):
-                col1, col2 = st.columns([3, 1])
+        with tab2:
+            if topic_report and 'lda_results' in topic_report:
+                st.header("🔍 Topic Analysis")
+                
+                col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.write(f"**Review:** {row['review_text']}")
-                    st.write(f"**Category:** {row['category']}")
-                    st.write(f"**Date:** {row['review_date'].strftime('%Y-%m-%d')}")
+                    st.subheader("Top Topics (LDA Model)")
+                    if topic_report['lda_results']:
+                        for topic in topic_report['lda_results']['top_topics'][:5]:
+                            words = ', '.join(topic['words'][:5])
+                            st.write(f"**Topic {topic['topic_id']}:** {words}")
+                            
+                        st.metric(
+                            "Model Coherence Score",
+                            f"{topic_report['lda_results']['coherence_score']:.3f}",
+                            help="Higher coherence indicates better topic quality"
+                        )
                 
                 with col2:
-                    sentiment_color = {
-                        'positive': '🟢',
-                        'negative': '🔴',
-                        'neutral': '🟡'
-                    }
-                    st.write(f"**Sentiment:** {sentiment_color.get(row['predicted_sentiment'], '⚪')}")
-                    st.write(f"**Helpful:** {row['helpful_count']} votes")
-                    if row['verified_purchase']:
-                        st.write("✅ Verified Purchase")
-    
-    with tab5:
-        display_insights(filtered_df, topic_report)
+                    st.subheader("Trending Topics (Last 30 Days)")
+                    if topic_report.get('trending_topics'):
+                        trending_df = pd.DataFrame([
+                            {'Topic': topic, 'Change': data['percentage_change']}
+                            for topic, data in list(topic_report['trending_topics'].items())[:10]
+                        ])
+                        
+                        fig = px.bar(
+                            trending_df,
+                            x='Change',
+                            y='Topic',
+                            orientation='h',
+                            title="Top Trending Topics",
+                            labels={'Change': 'Percentage Change (%)'},
+                            color='Change',
+                            color_continuous_scale='RdYlGn'
+                        )
+                        fig.update_layout(height=400)
+                        st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Topic analysis data not available")
         
-        # Export functionality
-        st.subheader("📥 Export Data")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("Export Filtered Data (CSV)"):
-                csv = filtered_df.to_csv(index=False)
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f"customer_feedback_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
+        with tab3:
+            st.header("Trends & Patterns Analysis")
+            
+            # Sentiment timeline
+            fig = create_sentiment_timeline(filtered_df)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Reviews volume over time
+            daily_reviews = filtered_df.groupby(filtered_df['review_date'].dt.date).size().reset_index(name='count')
+            
+            fig = px.line(
+                daily_reviews,
+                x='review_date',
+                y='count',
+                title="Daily Review Volume",
+                labels={'review_date': 'Date', 'count': 'Number of Reviews'}
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=daily_reviews['review_date'],
+                    y=daily_reviews['count'].rolling(7).mean(),
+                    mode='lines',
+                    name='7-day Moving Average',
+                    line=dict(color='red', width=2)
                 )
+            )
+            st.plotly_chart(fig, use_container_width=True)
         
-        with col2:
-            if st.button("Generate Executive Report"):
-                st.info("Executive report generation would be implemented here")
+        with tab4:
+            st.header("Review Explorer")
+            
+            # Search functionality
+            search_term = st.text_input("Search reviews", placeholder="Enter keywords to search...")
+            
+            # Advanced filters
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                sort_by = st.selectbox(
+                    "Sort by",
+                    options=['review_date', 'rating', 'confidence_score', 'helpful_count'],
+                    index=0
+                )
+            
+            with col2:
+                sort_order = st.radio("Order", ["Descending", "Ascending"])
+            
+            with col3:
+                num_reviews = st.number_input("Number of reviews to display", min_value=5, max_value=100, value=20)
+            
+            # Filter reviews
+            display_df = filtered_df.copy()
+            
+            if search_term:
+                display_df = display_df[
+                    display_df['review_text'].str.contains(search_term, case=False, na=False) |
+                    display_df['cleaned_text'].str.contains(search_term, case=False, na=False)
+                ]
+            
+            # Sort
+            display_df = display_df.sort_values(
+                by=sort_by,
+                ascending=(sort_order == "Ascending")
+            ).head(num_reviews)
+            
+            # Display reviews
+            for idx, row in display_df.iterrows():
+                with st.expander(
+                    f"{'⭐' * int(row['rating'])} | {row['product_name']} | "
+                    f"{row['predicted_sentiment'].upper()} ({row['confidence_score']:.0%} confidence)"
+                ):
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.write(f"**Review:** {row['review_text']}")
+                        st.write(f"**Category:** {row['category']}")
+                        st.write(f"**Date:** {row['review_date'].strftime('%Y-%m-%d')}")
+                    
+                    with col2:
+                        sentiment_color = {
+                            'positive': '🟢',
+                            'negative': '🔴',
+                            'neutral': '🟡'
+                        }
+                        st.write(f"**Sentiment:** {sentiment_color.get(row['predicted_sentiment'], '⚪')}")
+                        st.write(f"**Helpful:** {row['helpful_count']} votes")
+                        if row['verified_purchase']:
+                            st.write("✅ Verified Purchase")
         
-        with col3:
-            if st.button("Schedule Regular Reports"):
-                st.info("Report scheduling feature would be implemented here")
+        with tab5:
+            display_insights(filtered_df, topic_report)
+    
+    elif selected_page == "💼 Business Metrics":
+        try:
+            from business_metrics import render_business_metrics_page
+            render_business_metrics_page(filtered_df)
+        except ImportError:
+            st.error("Business Metrics page not available. Please check business_metrics.py file.")
+    
+    elif selected_page == "🎭 Sentiment Analysis":
+        try:
+            from sentiment_analysis import render_sentiment_analysis_page
+            render_sentiment_analysis_page(filtered_df)
+        except ImportError:
+            st.error("Sentiment Analysis page not available. Please check sentiment_analysis.py file.")
+    
+    elif selected_page == "🔍 Topic Insights":
+        try:
+            from topic_insights import render_topic_insights_page
+            render_topic_insights_page(filtered_df)
+        except ImportError:
+            st.error("Topic Insights page not available. Please check topic_insights.py file.")
 
 if __name__ == "__main__":
     main()

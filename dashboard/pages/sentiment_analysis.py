@@ -267,6 +267,9 @@ def create_misclassification_analysis(df):
     else:
         return None
 
+# ADD THIS TO THE END OF YOUR EXISTING dashboard/pages/sentiment_analysis.py FILE
+# Replace the existing render_sentiment_analysis_page function with this:
+
 def render_sentiment_analysis_page(df):
     """Main function to render the sentiment analysis page"""
     st.header("🎭 Sentiment Analysis Deep Dive")
@@ -499,6 +502,7 @@ def render_sentiment_analysis_page(df):
                 st.write(f"**Review:** {row['review_text']}")
                 st.write(f"**Category:** {row['category']}")
                 st.write(f"**Product:** {row['product_name']}")
+
 
 # This function will be called from the main dashboard
 def show():
