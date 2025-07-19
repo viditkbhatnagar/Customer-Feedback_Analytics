@@ -1,0 +1,39 @@
+# Core Data Processing
+pandas>=1.5.0
+numpy>=1.23.0
+scipy>=1.9.0
+
+# NLP Libraries  
+nltk>=3.8
+spacy>=3.4.0
+textblob>=0.17.1
+wordcloud>=1.9.0
+scikit-learn>=1.1.0
+
+# Topic Modeling (lightweight versions)
+gensim>=4.2.0
+umap-learn>=0.5.3
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+plotly>=5.10.0
+streamlit>=1.28.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.64.0
+
+# Additional Analytics
+textstat>=0.7.3
+
+# Optional: Transformer support (comment out if build issues)
+# torch>=1.13.0
+# transformers>=4.25.0
+
+# Optional: Advanced topic modeling (comment out if build issues)  
+# bertopic>=0.12.0
+# sentence-transformers>=2.2.0
+
+# For production deployment
+gunicorn>=20.1.0

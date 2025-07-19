@@ -461,7 +461,7 @@ def render_sentiment_analysis_page(df):
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Sample reviews by confidence level
+        # FIXED SAMPLING SECTION - Sample reviews by confidence level
         st.subheader("Sample Reviews by Confidence Level")
         
         conf_level = st.select_slider(
@@ -481,28 +481,54 @@ def render_sentiment_analysis_page(df):
         }
         
         low, high = conf_ranges[conf_level]
-        sample_df = df[
+        
+        # FIXED SAMPLING LOGIC - Check data availability first
+        filtered_subset = df[
             (df['confidence_score'] >= low) & 
             (df['confidence_score'] < high)
-        ].sample(min(5, len(df)))
+        ]
         
-        for _, row in sample_df.iterrows():
-            sentiment_color = {
-                'positive': '🟢',
-                'negative': '🔴',
-                'neutral': '🟡'
-            }
+        # Display info about filtered data
+        st.info(f"Found {len(filtered_subset)} reviews in the {conf_level} confidence range.")
+        
+        # Only proceed if we have data
+        if len(filtered_subset) == 0:
+            st.warning("No reviews found in this confidence range. Try adjusting your filters or selecting a different confidence range.")
+        else:
+            # Sample safely - only sample up to the number of rows available
+            sample_size = min(5, len(filtered_subset))
             
-            with st.expander(
-                f"{sentiment_color[row['predicted_sentiment']]} "
-                f"{row['predicted_sentiment'].upper()} "
-                f"(Confidence: {row['confidence_score']:.1%}) | "
-                f"Rating: {'⭐' * int(row['rating'])}"
-            ):
-                st.write(f"**Review:** {row['review_text']}")
-                st.write(f"**Category:** {row['category']}")
-                st.write(f"**Product:** {row['product_name']}")
-
+            if len(filtered_subset) <= 5:
+                sample_df = filtered_subset  # Use all available data
+                st.success(f"Displaying all {len(filtered_subset)} reviews in this range:")
+            else:
+                sample_df = filtered_subset.sample(sample_size, random_state=42)
+                st.success(f"Displaying {sample_size} sample reviews from {len(filtered_subset)} total:")
+            
+            # Display the reviews
+            for _, row in sample_df.iterrows():
+                sentiment_color = {
+                    'positive': '🟢',
+                    'negative': '🔴',
+                    'neutral': '🟡'
+                }
+                
+                with st.expander(
+                    f"{sentiment_color[row['predicted_sentiment']]} "
+                    f"{row['predicted_sentiment'].upper()} "
+                    f"(Confidence: {row['confidence_score']:.1%}) | "
+                    f"Rating: {'⭐' * int(row['rating'])}"
+                ):
+                    st.write(f"**Review:** {row['review_text']}")
+                    st.write(f"**Category:** {row['category']}")
+                    st.write(f"**Product:** {row['product_name']}")
+                    st.write(f"**Date:** {row.get('review_date', 'N/A')}")
+                    
+                    # Additional info if available
+                    if 'verified_purchase' in row and row['verified_purchase']:
+                        st.write("✅ Verified Purchase")
+                    if 'helpful_count' in row:
+                        st.write(f"👍 {row['helpful_count']} found this helpful")
 
 # This function will be called from the main dashboard
 def show():
